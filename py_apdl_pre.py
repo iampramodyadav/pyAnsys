@@ -3,8 +3,10 @@ import numpy as np
 import pyvista as pv
 import pandas as pd
 from ansys.mapdl.core import launch_mapdl
+
 mapdl = launch_mapdl(start_timeout=120,)
-# print(mapdl)
+print(mapdl)
+
 PYTHONTOOLSDIR = r"C:\Users\pramod.kumar\OneDrive - SIEMENSGAMESA\Work\ContactDetect"
 sys.path.append(PYTHONTOOLSDIR)
 import ContactDetection as cd
@@ -42,7 +44,7 @@ def paraimport(paraname, parapath, cmname):
 
 
 def area_cent(a_num):
-    """This function takes a list of area numbers as input and returns the centroid of the areas.
+    """This function takes a list of area numbers as input and returns the centroid of the areas and area val.
 
     The centroid is calculated by first summing the x, y, and z coordinates of all the areas in the list.
     The average of these sums is then returned as the centroid.
@@ -65,8 +67,10 @@ def area_cent(a_num):
     cent_x = mapdl.get(entity='AREA', item1='CENT', it1num='X')
     cent_y = mapdl.get(entity='AREA', item1='CENT', it1num='Y')
     cent_z = mapdl.get(entity='AREA', item1='CENT', it1num='Z')
+
+    area_val = mapdl.get(entity='AREA', item1='AREA')
     
-    return np.array([cent_x,cent_y,cent_z])
+    return np.array([cent_x,cent_y,cent_z]), area_val
 
 
 def clocal_area(a_num):
@@ -90,7 +94,7 @@ def clocal_area(a_num):
         The rotation angle about the y-axis.
 
     """
-    centroid = np.array(area_cent([a_num]))
+    centroid = np.array(area_cent([a_num])[0])
     ## selecting kp from area and geneartng kp if required
     # mapdl.csys(kcn=0)
     mapdl.asel("S", "AREA", "", a_num)
@@ -155,8 +159,6 @@ def contact_between_cm(cm1, cm2, cs_num=1000):
     Returns:
         dict: A dictionary of area pairs.
     """
-    .
-
     mapdl.csys(kcn=0)
     mapdl.cmsel(type_="S", name=cm1, entity="VOLU")
     mapdl.allsel(labt="BELOW ", entity="VOLU")
@@ -208,7 +210,119 @@ def contact_between_cm(cm1, cm2, cs_num=1000):
         # mapdl.csys(kcn=0)
     return area_pair
 
+def area21_kp_vector(anum1, anum2):
+    """
+    Calculates the vector from a keypoint in area 1 to the nearest keypoint in area 2.
 
+    Args:
+        anum1 (int): The number of area 1.
+        anum2 (int): The number of area 2.
+
+    Returns:
+        list: A list of vectors from the nearest keypoint in area 2 to the keypoints in area 1.
+        max length vector at first position
+    """
+    
+    mapdl.csys(kcn=0)
+
+    # ------- Area-1 & area-2 centroid -------
+    centroid1 = area_cent([anum1])[0]
+    centroid2 = area_cent([anum2])[0]
+    
+    # ------- Area-1 keypoints coordinate -------
+    mapdl.asel("S", "AREA", "", anum1)
+    mapdl.allsel(labt="BELOW ", entity="AREA")
+    mapdl.allsel(labt="BELOW ", entity="LINE")
+    llist1 = mapdl.geometry.lnum
+    mapdl.allsel(labt="BELOW ", entity="KP")
+    klist1 = mapdl.geometry.knum
+    len(klist1)
+
+    if len(klist1) <= 40:
+        for lnum in llist1:
+            mapdl.ldiv(lnum, ndiv=10)
+        llist1 = mapdl.geometry.lnum
+        klist1 = mapdl.geometry.knum
+
+    kp_coord1 = {}
+    for kpoiint in klist1:
+        k_x = mapdl.queries.kx(kpoiint)
+        k_y = mapdl.queries.ky(kpoiint)
+        k_z = mapdl.queries.kz(kpoiint)
+        k1 = np.array([k_x, k_y, k_z])
+        kp_coord1[kpoiint] = k1
+
+    # ------- Area-2 keypoints coordinate -------
+    mapdl.asel("S", "AREA", "", anum2)
+    mapdl.allsel(labt="BELOW ", entity="AREA")
+    mapdl.allsel(labt="BELOW ", entity="LINE")
+    llist2 = mapdl.geometry.lnum
+    mapdl.allsel(labt="BELOW ", entity="KP")
+    klist2 = mapdl.geometry.knum
+    len(klist2)
+
+    if len(klist2) <= 40:
+        for lnum in llist2:
+            mapdl.ldiv(lnum, ndiv=10)
+        llist2 = mapdl.geometry.lnum
+        klist2 = mapdl.geometry.knum
+
+    kp_coord2 = {}
+    for kpoiint in klist2:
+        k_x = mapdl.queries.kx(kpoiint)
+        k_y = mapdl.queries.ky(kpoiint)
+        k_z = mapdl.queries.kz(kpoiint)
+        k1 = np.array([k_x, k_y, k_z])
+        kp_coord2[kpoiint] = k1
+
+    # ------- Distance between centroid of area-1 and keypoints of area-2 -------
+    kp_list2 = list(kp_coord2.keys())
+    dist_list = [np.linalg.norm(centroid1 - kp_coord2[kpoint]) for kpoint in kp_list2]
+    # Kp of area-2 nearest to area-1
+    min_value = min(dist_list)
+    # print(min_value)
+    min_index = dist_list.index(min_value)
+    # print(min_index)
+    
+    # ------- Coordinate of nearest Kp -------
+    v0 = kp_coord2[kp_list2[min_index]]
+    # print(v0)
+    
+    # ------- Create vector from nearest Kp of area-2 to all Kps of area-1 -------
+    kplist1 = list(kp_coord1.keys())
+    vector_21_list = [kp_coord1[kpn] - v0 for kpn in kplist1]
+    # print(len(vector_21_list))
+
+    # -------max length vector at first -------
+    len_vector_21_list = [np.linalg.norm(vec) for vec in vector_21_list]
+    max_value = max(len_vector_21_list)
+    max_index = len_vector_21_list.index(max_value)
+    # len_vector_21_list = len_vector_21_list[max_index: ] + len_vector_21_list[ :max_index]
+    # # print(len_vector_21_list)
+    # vector_21_list = vector_21_list[max_index: ] + vector_21_list[ :max_index]
+    
+    return vector_21_list, max_index
+
+def check_overlap(anum1, anum2):
+    overlap = 0
+    eq_area = 0
+    
+    centroid1, area_val1 = area_cent([anum1])
+    centroid2, area_val2 = area_cent([anum2])
+    centroid1 = np.array(centroid1)
+    centroid2 = np.array(centroid2)
+    
+    dist = np.linalg.norm(centroid1 - centroid2)
+    
+    if dist <= 1.0e-3:
+        # print(f"area overlapping, ccentroid dist: {dist}")
+        overlap = 1
+
+    if np.isclose(area_val1, area_val2, rtol=1e-05, atol=1e-06, equal_nan=False):
+        eq_area = 1
+
+    return overlap, eq_area
+    
 if __name__ == '__main__':
     paraName = 'BBSPACERS_D4118297-001_SG5XGR01_TEST'
     path = 'K:\\Users\\pramod.kumar\\Sandbox\\PyAnsys'

@@ -31,6 +31,7 @@ check_coplaner.__doc__ ="""
         float: The determinant of a 4x4 matrix formed by the given points.
               Returns a value close to zero if the points are coplanar.
     """
+
 dcv = lambda x, y, z: np.array([x / np.sqrt(x**2 + y**2 + z**2),
                                 y / np.sqrt(x**2 + y**2 + z**2),
                                 z / np.sqrt(x**2 + y**2 + z**2)])
@@ -45,6 +46,7 @@ dcv.__doc__ ="""
     Returns:
         numpy array: Array containing the direction cosines of the point.
     """
+
 check_normal = lambda v1, v2, v3: np.abs(np.array([np.dot(v1,v2),
                                                    np.dot(v2,v3),
                                                    np.dot(v3,v1)])) < np.array([1.0e-6,
@@ -61,6 +63,7 @@ check_normal.__doc__ = """
     Returns:
         numpy array: Boolean array indicating whether each pair of vectors is perpendicular.
     """
+
 def coordinate_dcm(origin,p1,p2):
     """
     Calculate the Direction Cosine Matrix (DCM) of three perpendicular vectors.
@@ -91,6 +94,7 @@ def coordinate_dcm(origin,p1,p2):
         v4_dc=dcv(v4[0],v4[1],v4[2])
 
         return v1_dc, v4_dc, v3_dc
+
 
 def dcm2angleZXY(R):
     """
@@ -148,6 +152,7 @@ def circle_center_radius(A, B, C):
 #     centr = centr/(b1 + b2 + b3)
     return centr,rad
 
+
 def perpendicular_vector(vector):
     """
     Return two vectors, such that all three vectors perpendicular each other
@@ -173,3 +178,77 @@ def perpendicular_vector(vector):
     perp_vec_x = np.cross( perp_vec_y, vector)
 
     return perp_vec_y, perp_vec_x
+
+
+def vectors_angle_3d(v1, v2):
+    """
+    Calculate the angle between two vectors for 0 to 360 range.
+
+    Args:
+        v1 (list): The first vector.
+        v2 (list): The second vector.
+
+    Returns:
+        float: The angle between the two vectors in degrees.
+    """
+    
+    v1_norm = np.linalg.norm(v1)
+    v2_norm = np.linalg.norm(v2)
+    cos_theta = np.dot(v1, v2) / (v1_norm * v2_norm)
+    angle_rad = np.arccos(np.clip(cos_theta, -1.0, 1.0))
+    angle_deg = np.degrees(angle_rad)
+
+    cross_product = np.cross(v1, v2)
+    # print(cross_product)
+
+    if cross_product[2] < 0:
+        angle_deg = 360 - angle_deg
+        
+    if cross_product[2] == 0 and cross_product[1] < 0:
+        angle_deg = 360 - angle_deg
+        
+    if cross_product[2] == 0 and cross_product[1] == 0 and cross_product[0] < 0:
+        angle_deg = 360 - angle_deg
+
+    return angle_deg
+
+def vector_spred(vect_list, start_ind):
+    
+    v1 = vect_list[start_ind]
+    v0_90 = []
+    v90_180 = []
+    v180_270 = []
+    v270_360 = []
+    
+    angles = []
+    for vec in vect_list:
+        ang = vectors_angle_3d(v1,vec)
+        angles.append(ang)
+        if ang<90-1 and ang>0+1: 
+            v0_90.append(ang)
+        
+        if ang<180-1 and ang>90+1: 
+            v90_180.append(ang)
+        
+        if ang<270-1 and ang>180+1: 
+            v180_270.append(ang)
+        
+        if ang<360-1 and ang>270+1: 
+            v270_360.append(ang)
+
+    l1 = len(v0_90)
+    l2 = len(v90_180)
+    l3 = len(v180_270)
+    l4 = len(v270_360)
+    
+    return l1, l2, l3, l4
+
+if __name__ == '__main__':
+    vector1 = np.array([1, 0, 0])
+    vector2 = np.array([-1, 0.0001, 0])
+    
+    angle1 = vectors_angle_3d(vector1, vector2)
+    angle2 = vectors_angle_3d(vector2, vector1)
+    
+    print(angle1)  # Output will be 90.0
+    print(angle2)
