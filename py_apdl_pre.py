@@ -201,7 +201,7 @@ def contact_between_cm(cm1, cm2, cs_num=1000):
         mapdl.wpcsys(kcn=cs_num)
         mapdl.wpstyl(wpctyp=0)
         mapdl.csys(kcn=4)
-        mapdl.asel("R", "LOC", "Z", -1.0e-3, 1.0e-3)
+        mapdl.asel("R", "LOC", "Z", -1.0e-6, 1.0e-6)
         # mapdl.allsel(labt="BELOW ", entity="AREA")
         alist_cm = mapdl.geometry.anum
         area_pair[a_num]=alist_cm
@@ -240,7 +240,7 @@ def area21_kp_vector(anum1, anum2):
 
     if len(klist1) <= 40:
         for lnum in llist1:
-            mapdl.ldiv(lnum, ndiv=10)
+            mapdl.ldiv(lnum, ndiv=4)
         llist1 = mapdl.geometry.lnum
         klist1 = mapdl.geometry.knum
 
@@ -263,7 +263,7 @@ def area21_kp_vector(anum1, anum2):
 
     if len(klist2) <= 40:
         for lnum in llist2:
-            mapdl.ldiv(lnum, ndiv=10)
+            mapdl.ldiv(lnum, ndiv=8)
         llist2 = mapdl.geometry.lnum
         klist2 = mapdl.geometry.knum
 
